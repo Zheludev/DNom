@@ -208,4 +208,5 @@ snakemake --snakefile "$pipeline"/denim.sm --configfile config.yaml --cores 1
 ```
 
 __a note on analytical design__
-`denim` is written for trivial analytical designs with only one variable (e.g. `~strain`). in reality, you often want to account for other variables in your analysis (e.g. `~strain + sex + tissue`). Writing one 'one-size-fits-all' solution felt clunky, so instead, I've included an example [`jupyter`](https://docs.jupyter.org/en/latest/) notebook to assist in this analysis.
+
+`denim` is written for trivial analytical designs with only one variable (e.g. `~strain`). in reality, you often want to account for other variables in your analysis (e.g. `~strain + sex + tissue`). Writing one 'one-size-fits-all' solution felt clunky, so instead, I've included an example [`jupyter`](https://docs.jupyter.org/en/latest/) notebook (`sleuth_plotting_notebook.ipynb`) to assist in this more nuanced analysis.
