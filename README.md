@@ -74,7 +74,7 @@ __retrieval__
 
 # design
 `denim` is purposefully written in a modular way. Each step (*preprocessing*, *embedding*, *clustering*, *statistical analysis*, and *retrieval*) can be altered, swapped-out, and added-to from the modular `snakemake` pipeline.
-Additionally, `denim` makes use of CPU parallelization wherever possible for acceleration while also trying to limit its RAM footprint.
+Additionally, `denim` makes use of CPU parallelization wherever possible for acceleration while also trying (though not always successfully) to limit its RAM footprint.
 
 # promises
 I make no promises about the robustness, statistical-validity, or longevity of `denim`. At this point, I see this tool as more of an intellectual exercize than anything else.
