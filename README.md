@@ -38,7 +38,7 @@ the user can then analyse these reads as they see fit with the knowledge that ac
 
 # details
 __preprocessing__
-1. paired-end reads are first quality filtered and then merged (if overlaps are present) using [`fastp`](https://github.com/OpenGene/fastp)
+1. reads are first quality filtered and then merged (if paired and overlaps are present) using [`fastp`](https://github.com/OpenGene/fastp)
 
 __embedding__
 
