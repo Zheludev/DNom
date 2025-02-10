@@ -1,0 +1,36 @@
+# Initialization
+base_dir: "."
+metadata: "metadata.tsv"
+pipeline_dir: "/gladstone/ott/home/izheludev/denim/pipeline"
+paired: FALSE
+
+# Pipeline mode
+embedding: "merge"  # can be: RTD, CGR, or merge
+
+# Computational parameters
+threads: 64
+
+# Embedding paramters
+strand: "unstranded"
+
+# RTD parameters
+k: 2
+alphabet: "A C G T"
+
+# Clustering parameters
+min_cluster_size: 400
+min_samples: 5
+max_GMM: 5
+seed: 42
+
+# Merging parameters
+overlap: 10
+
+# Bootstrapping parameters
+n_bootstraps: 1000
+
+# Sleuth parameters
+parameter: "disease"
+pseudocount: 0.5
+alpha: 0.05
+foldchange: 10

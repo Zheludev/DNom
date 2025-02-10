@@ -1,0 +1,39 @@
+name: DENIM
+channels:
+  - conda-forge
+  - bioconda
+  - numba
+  - anaconda
+  - defaults
+dependencies:
+  # Basic Python packages
+  - python>=3.9
+  - pip
+  - numpy
+  - pandas
+  - numba
+  - h5py
+  - tqdm
+  
+  # Bioinformatics tools
+  - biopython
+  - rtk
+  - seqkit
+  - fastp
+  
+  # R packages
+  - r-base
+  - r-essentials
+  - r-sleuth
+  - r-microbiomestat
+  - r-optparse
+  
+  # Utilities
+  - snakemake
+  - eza
+  - parallel
+  - jupyter
+  
+  # Pip packages
+  - pip:
+    - fast_hdbscan
