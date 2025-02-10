@@ -155,6 +155,7 @@ you should also configure the `config.yaml` file to run per your requirements. b
 base_dir: "."
 metadata: "metadata.tsv"
 pipeline_dir: "<absolute path to pipeline dir>"
+paired: TRUE
 
 # Pipeline mode
 embedding: "merge"  # can be: RTD, CGR, or merge
