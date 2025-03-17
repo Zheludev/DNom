@@ -191,7 +191,7 @@ foldchange: 10
 
 __actually running `denim`__
 
-*be sure to use the absolute path to the pipeline directory both in command-line command and the `snakemake` config file*
+*be sure to use the absolute path to the pipeline directory both in the command-line command and the `snakemake` config file*
 
 ```
 # navigate to base directory
