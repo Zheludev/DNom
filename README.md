@@ -195,7 +195,7 @@ __actually running `denim`__
 
 ```
 # navigate to base directory
-cd <base dir containing 00_input>
+cd <base dir containing input>
 
 # create pipeline directory path variable
 pipeline=$(echo '<absolute path to pipeline dir>')
