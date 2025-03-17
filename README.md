@@ -122,9 +122,9 @@ SRR29668078	ObN1_B_RNaseR	ObN1_B	ObN1	B
 SRR29668079	ObN1_A_RNaseR	ObN1_A	ObN1	A
 ```
 
-raw, paired-end reads must be in a directory titled `00_input` within corresponding sub-directories titled after rows in `SRA`. These `SRA` sub-directories must contain reads titled `SRA_[12].fastq.gz`
+raw, paired-end reads must be in a directory titled `input` within corresponding sub-directories titled after rows in `SRA`. These `SRA` sub-directories must contain reads titled `SRA_[12].fastq.gz`
 
-`00_input` example:
+`input` example:
 ```
 00_input/
 ├── SRR29668074
