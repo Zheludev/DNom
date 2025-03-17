@@ -1,5 +1,5 @@
 # `denim`
-*reference-free, differential abundance analysis of NGS data in a `snakemake` pipeline*
+*reference-free, embedding-based, differential abundance analysis of NGS data in a `snakemake` pipeline*
 
 # overview
 `denim` is an end-to-end [`snakemake`](https://snakemake.readthedocs.io/en/stable/) pipeline that <ins>takes in:</ins>
