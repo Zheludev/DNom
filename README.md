@@ -158,7 +158,7 @@ pipeline_dir: "<absolute path to pipeline dir>"
 paired: TRUE
 
 # Pipeline mode
-embedding: "merge"  # can be: RTD, CGR, or merge
+embedding: "ALL"  # can be: RTD or CGR or ALL
 
 # Computational parameters
 threads: 64
@@ -175,9 +175,6 @@ min_cluster_size: 400
 min_samples: 5
 max_GMM: 5
 seed: 42
-
-# Merging parameters
-overlap: 10
 
 # Bootstrapping parameters
 n_bootstraps: 1000
