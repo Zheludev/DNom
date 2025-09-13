@@ -1,8 +1,8 @@
-# `denim`
+# `DNom`
 *reference-free, embedding-based, differential abundance analysis of NGS data in a `snakemake` pipeline*
 
 # overview
-`denim` is an end-to-end [`snakemake`](https://snakemake.readthedocs.io/en/stable/) pipeline that <ins>takes in:</ins>
+`DNom` is an end-to-end [`snakemake`](https://snakemake.readthedocs.io/en/stable/) pipeline that <ins>takes in:</ins>
 ```
 1. NGS sequencing data from multiple (arbitrary number) samples
 
@@ -18,10 +18,10 @@ and <ins>produces:</ins>
 
 2. volcano plots summarizing this differential presence
 ```
-### <ins>*__critically, `denim` does not require any reference (such as a database or genome) to perform this analysis__*</ins>
+### <ins>*__critically, `DNom` does not require any reference (such as a database or genome) to perform this analysis__*</ins>
 
 # pipeline
-at a high level, `denim` achieves this by:
+at a high level, `DNom` achieves this by:
 
 1. [embedding](https://www.ibm.com/think/topics/embedding) all the NGS reads (by sample) into numerical vectors
    - *the (Euclidian) distance between these vectors is related to the sequence similarity between their underlying reads*
@@ -34,7 +34,7 @@ at a high level, `denim` achieves this by:
 
 6. extracting the read clusters that satisfy (user defined) significance thresholds
 
-the user can then analyse these reads as they see fit with the knowledge that according to `denim`, something is interesting about them.
+the user can then analyse these reads as they see fit with the knowledge that according to `DNom`, something is interesting about them.
 
 # details
 __preprocessing__
@@ -73,14 +73,14 @@ __retrieval__
 6. if significantly differentially present clusters are identified, the corresponding reads are extracted for *post-hoc* analysis
 
 # design
-`denim` is purposefully written in a modular way. Each step (*preprocessing*, *embedding*, *clustering*, *statistical analysis*, and *retrieval*) can be altered, swapped-out, and added-to from the modular `snakemake` pipeline.
-Additionally, `denim` makes use of CPU parallelization wherever possible for acceleration while also trying (though not always successfully) to limit its RAM footprint.
+`DNom` is purposefully written in a modular way. Each step (*preprocessing*, *embedding*, *clustering*, *statistical analysis*, and *retrieval*) can be altered, swapped-out, and added-to from the modular `snakemake` pipeline.
+Additionally, `DNom` makes use of CPU parallelization wherever possible for acceleration while also trying (though not always successfully) to limit its RAM footprint.
 
 # promises
-I make no promises about the robustness, statistical-validity, or longevity of `denim`. At this point, I see this tool as more of an intellectual exercize than anything else.
+I make no promises about the robustness, statistical-validity, or longevity of `DNom`. At this point, I see this tool as more of an intellectual exercize than anything else.
 
 # future
-I have no current plans to expand on `denim`, however, implementation of hardware (GPU) acceleration, would likely speed up the whole pipeline while also opening up opportunities for more exotic embedding and clustering approaches.
+I have no current plans to expand on `DNom`, however, implementation of hardware (GPU) acceleration, would likely speed up the whole pipeline while also opening up opportunities for more exotic embedding and clustering approaches.
 
 alternative *embedding* strategies could involve:
 - LLMs like [`DNABERT-S`](https://arxiv.org/abs/2402.08777)
@@ -93,7 +93,7 @@ alternative *statistical analysis* strategies could involve:
 - [`LinDA`](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-022-02655-5)
 - [`MaAsLin3`](https://www.biorxiv.org/content/10.1101/2024.12.13.628459v1)
 
-# alternatives to `denim`
+# alternatives to `DNom`
 a number of folks smarter than me have already approached this problem. fundementally, these approaches rely on `k-mer`-based analysis (`k-mer` counting / assembly):
 - [`IMP`](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-016-1116-8) (assembly-based)
 - [`kmdiff`](https://academic.oup.com/bioinformatics/article/38/24/5443/6782954?login=false) (`k-mer` counting)
@@ -103,13 +103,13 @@ a number of folks smarter than me have already approached this problem. fundemen
 # installation
 currently, installation requires you to manually create a new [`mamba`](https://mamba.readthedocs.io/en/latest/) environment (this will take a while):
    
-   `mamba env create -f denim_mamba_env.yml`
+   `mamba env create -f DNom_mamba_env.yml`
 
-# running `denim`
+# running `DNom`
 
 __setup__
 
-`denim` requires a tab-delimited metadata file that must have the columns: `SRA`, `description`, and `sample`. A fourth column is likely needed for your statistical test (e.g. `strain`).
+`DNom` requires a tab-delimited metadata file that must have the columns: `SRA`, `description`, and `sample`. A fourth column is likely needed for your statistical test (e.g. `strain`).
 
 `metadata.tsv` example:
 ```
@@ -189,7 +189,7 @@ alpha: 0.05
 foldchange: 10
 ```
 
-__actually running `denim`__
+__actually running `DNom`__
 
 *be sure to use the absolute path to the pipeline directory both in the command-line command and the `snakemake` config file*
 
@@ -202,12 +202,12 @@ pipeline=$(echo '<absolute path to pipeline dir>')
 
 # dry run test
 # be sure to set '--cores 1' as multitheading is handled within the config.yaml
-snakemake --snakefile "$pipeline"/denim.sm --configfile config.yaml --cores 1 -n
+snakemake --snakefile "$pipeline"/DNom.sm --configfile config.yaml --cores 1 -n
 
-# run denim
-snakemake --snakefile "$pipeline"/denim.sm --configfile config.yaml --cores 1
+# run DNom
+snakemake --snakefile "$pipeline"/DNom.sm --configfile config.yaml --cores 1
 ```
 
 __a note on analytical design__
 
-`denim` is written for trivial analytical designs with only one variable (e.g. `~strain`). In reality, you often want to account for other variables in your analysis (e.g. `~strain + sex + tissue`). Writing one 'one-size-fits-all' solution felt clunky, so instead, I've included an example [`jupyter`](https://docs.jupyter.org/en/latest/) notebook (`sleuth_plotting_notebook.ipynb`) to assist in this more nuanced analysis.
+`DNom` is written for trivial analytical designs with only one variable (e.g. `~strain`). In reality, you often want to account for other variables in your analysis (e.g. `~strain + sex + tissue`). Writing one 'one-size-fits-all' solution felt clunky, so instead, I've included an example [`jupyter`](https://docs.jupyter.org/en/latest/) notebook (`sleuth_plotting_notebook.ipynb`) to assist in this more nuanced analysis.
