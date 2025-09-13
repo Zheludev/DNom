@@ -1,4 +1,4 @@
-name: DENIM
+name: DNom
 channels:
   - conda-forge
   - bioconda
