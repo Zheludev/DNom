@@ -1,0 +1,468 @@
+# File: Snakefile
+
+import os
+import pandas as pd
+from pathlib import Path
+
+# Load configuration
+configfile: "config.yaml"
+
+# Validate paired parameter
+if "paired" not in config:
+    raise ValueError("'paired' parameter must be specified in config.yaml")
+if not isinstance(config["paired"], bool):
+    raise ValueError("'paired' must be a boolean value (TRUE or FALSE)")
+
+# Validate embedding parameter
+VALID_EMBEDDINGS = ["RTD", "CGR"]
+if "embedding" not in config:
+    raise ValueError("'embedding' parameter must be specified in config.yaml")
+if config["embedding"] not in VALID_EMBEDDINGS:
+    raise ValueError(f"'embedding' must be one of: {VALID_EMBEDDINGS}")
+
+# Validate threads parameter
+if "threads" not in config:
+    raise ValueError("'threads' parameter must be specified in config.yaml")
+if not isinstance(config["threads"], int) or config["threads"] <= 0:
+    raise ValueError("'threads' must be a positive integer")
+
+# Validate strand parameter
+if "strand" not in config:
+    raise ValueError("'strand' parameter must be specified in config.yaml")
+
+# Validate RTD-specific parameters if RTD is being used
+if config["embedding"] in ["RTD"]:
+    if "k" not in config:
+        raise ValueError("'k' parameter must be specified for RTD embedding")
+    if "alphabet" not in config:
+        raise ValueError("'alphabet' parameter must be specified for RTD embedding")
+
+# Validate clustering parameters
+clustering_params = ["min_cluster_size", "min_samples", "max_GMM", "seed"]
+for param in clustering_params:
+    if param not in config:
+        raise ValueError(f"'{param}' parameter must be specified for clustering")
+
+# Validate bootstrapping parameters
+if "n_bootstraps" not in config:
+    raise ValueError("'n_bootstraps' parameter must be specified for bootstrapping")
+if not isinstance(config["n_bootstraps"], int) or config["n_bootstraps"] <= 0:
+    raise ValueError("'n_bootstraps' must be a positive integer")
+
+# Validate Sleuth parameters
+sleuth_params = ["parameter", "pseudocount", "alpha", "foldchange"]
+for param in sleuth_params:
+    if param not in config:
+        raise ValueError(f"'{param}' parameter must be specified for Sleuth analysis")
+
+# Validate numeric Sleuth parameters
+if not isinstance(config["pseudocount"], (int, float)) or config["pseudocount"] <= 0:
+    raise ValueError("'pseudocount' must be a positive number")
+if not isinstance(config["alpha"], float) or not 0 < config["alpha"] < 1:
+    raise ValueError("'alpha' must be a float between 0 and 1")
+if not isinstance(config["foldchange"], (int, float)) or config["foldchange"] <= 0:
+    raise ValueError("'foldchange' must be a positive number")
+
+# Define base directories
+BASE_DIR = config["base_dir"]
+INPUT_DIR = "input"
+
+# Define what embeddings will be used (keep this line as is, but move it up)
+EMBEDDINGS_TO_USE = [config["embedding"]]
+
+# Define a function to get directory paths based on embedding type
+def get_dirs(embedding):
+    dirs = {}
+    
+    # All embedding types have these directories
+    if embedding in ["RTD", "CGR"]:
+        dirs.update({
+            "root": embedding,
+            "embed_dir": f"{embedding}/embedding",
+            "cluster_dir": f"{embedding}/clustering",
+            "bootstrap_dir": f"{embedding}/bootstrapping",
+            "sleuth_dir": f"{embedding}/Sleuth",
+            "retrieval_dir": f"{embedding}/significant"
+        })
+    
+    return dirs
+
+# Create directory structure by embedding type
+DIRS = {embedding: get_dirs(embedding) for embedding in EMBEDDINGS_TO_USE}
+
+def get_expected_outputs():
+    outputs = []
+    outputs.extend([
+        "validation_complete.txt",
+        "embedding_mode_reported.txt",
+        f"{INPUT_DIR}/qc_merge_complete.txt"
+    ])
+    
+    for method in EMBEDDINGS_TO_USE:
+        outputs.extend([
+            f"{DIRS[method]['embed_dir']}/embedding_complete.txt",
+            f"{DIRS[method]['cluster_dir']}/clustering_complete.txt",
+            f"{DIRS[method]['bootstrap_dir']}/bootstrapping_complete.txt",
+            f"{DIRS[method]['sleuth_dir']}/sleuth_complete.txt",
+            f"{DIRS[method]['retrieval_dir']}/retrieval_complete.txt"
+        ])
+    
+    return outputs
+
+# Load metadata
+def load_metadata():
+    try:
+        return pd.read_csv(config["metadata"], sep="\t")
+    except Exception as e:
+        raise ValueError(f"Error reading metadata file: {e}")
+
+# Validate parameter exists in metadata
+metadata = load_metadata()
+if config["parameter"] not in metadata.columns:
+    raise ValueError(f"Parameter '{config['parameter']}' not found in metadata file")
+
+# Input validation function
+def validate_input_structure():
+    # Check if base directory exists
+    base_dir = Path(config["base_dir"])
+    if not base_dir.exists():
+        raise ValueError(f"Base directory {base_dir} does not exist")
+    
+    # Check if input directory exists
+    input_dir = base_dir / INPUT_DIR
+    if not input_dir.exists():
+        raise ValueError(f"Input directory {input_dir} does not exist")
+    
+    # Check if metadata file exists
+    metadata_path = base_dir / config["metadata"]
+    if not metadata_path.exists():
+        raise ValueError(f"Metadata file {metadata_path} does not exist")
+    
+    # Load and validate metadata
+    metadata = load_metadata()
+    required_columns = ["SRA", "description", "sample"]
+    missing_columns = [col for col in required_columns if col not in metadata.columns]
+    if missing_columns:
+        raise ValueError(f"Missing required columns in metadata: {missing_columns}")
+    
+    # Check if QC/merge has been completed
+    qc_merge_complete = (input_dir / "qc_merge_complete.txt").exists()
+    
+    # Validate input directory structure
+    if qc_merge_complete:
+        # After QC/merge, check for sample-named directories
+        for sample in metadata["sample"].unique():
+            sample_dir = input_dir / str(sample)
+            if not sample_dir.exists():
+                raise ValueError(f"Missing directory for sample: {sample_dir}")
+    else:
+        # Before QC/merge, check for SRA-named directories and fastq files
+        for sra in metadata["SRA"]:
+            sra_dir = input_dir / str(sra)
+            if not sra_dir.exists():
+                raise ValueError(f"Missing directory for SRA: {sra_dir}")
+            
+            # Check for fastq files based on paired status
+            if config["paired"]:
+                r1 = sra_dir / f"{sra}_1.fastq.gz"
+                r2 = sra_dir / f"{sra}_2.fastq.gz"
+                if not r1.exists():
+                    raise ValueError(f"Missing R1 fastq file: {r1}")
+                if not r2.exists():
+                    raise ValueError(f"Missing R2 fastq file: {r2}")
+            else:
+                fastq = sra_dir / f"{sra}.fastq.gz"
+                if not fastq.exists():
+                    raise ValueError(f"Missing fastq file: {fastq}")
+
+# Perform initial validation
+validate_input_structure()
+
+# Get list of all samples
+metadata = load_metadata()
+SAMPLES = metadata["SRA"].tolist()
+
+# Define the target rule
+rule all:
+    input:
+        get_expected_outputs()
+
+# Validation rule
+rule validate_inputs:
+    output:
+        touch("validation_complete.txt")
+    run:
+        validate_input_structure()
+        print("Input validation completed successfully!")
+
+# Rule to report embedding mode
+rule report_embedding_mode:
+    output:
+        touch("embedding_mode_reported.txt")
+    run:
+        print(f"\nPipeline will run in SINGLE EMBEDDING mode:")
+        print(f"Reads will be embedded using '{config['embedding']}'\n")
+
+rule qc_and_merge:
+    input:
+        "validation_complete.txt",
+        "embedding_mode_reported.txt"
+    output:
+        touch(f"{INPUT_DIR}/qc_merge_complete.txt")
+    params:
+        pipeline_dir = config["pipeline_dir"],
+        input_dir = os.path.join(config["base_dir"], INPUT_DIR),
+        metadata = config["metadata"],
+        threads = config["threads"],
+        paired = "TRUE" if config["paired"] else "FALSE"
+    shell:
+        """
+        echo "\nStarting read QC and merging..."
+        echo "Using {params.threads} CPUs for processing"
+        echo "Input directory: {params.input_dir}"
+        echo "Pipeline directory: {params.pipeline_dir}"
+        echo "Paired-end mode: {params.paired}\n"
+        
+        {params.pipeline_dir}/filter_merge.sh \
+            -p {params.input_dir} \
+            -m {params.metadata} \
+            -t {params.threads} \
+            --paired {params.paired}
+        """
+
+# Embedding rule
+rule embedding:
+    input:
+        f"{INPUT_DIR}/qc_merge_complete.txt"
+    output:
+        "{embedding}/embedding/embedding_complete.txt"
+    wildcard_constraints:
+        embedding = "RTD|CGR"  # Ensures only RTD and CGR are valid values
+    params:
+        pipeline_dir = config["pipeline_dir"],
+        base_dir = config["base_dir"],
+        input_dir = INPUT_DIR,
+        metadata = config["metadata"],
+        threads = config["threads"],
+        # Embedding-specific params handled with conditional logic
+        k = lambda wildcards: config["k"] if wildcards.embedding == "RTD" else None,
+        alphabet = lambda wildcards: config["alphabet"] if wildcards.embedding == "RTD" else None,
+        strand = config["strand"],
+        paired = "TRUE" if config["paired"] else "FALSE"
+    shell:
+        """
+        echo "\nStarting {wildcards.embedding} embedding..."
+        echo "Using {params.threads} CPUs for processing"
+        echo "Input directory: {params.input_dir}"
+        
+        # Create the output directory
+        mkdir -p $(dirname {output})
+        
+        # RTD-specific parameters and command
+        if [ "{wildcards.embedding}" = "RTD" ]; then
+            echo "k-mer size: {params.k}"
+            echo "Alphabet: {params.alphabet}"
+            {params.pipeline_dir}/generate_rtd.sh \\
+                -b {params.base_dir} \\
+                -i {params.input_dir} \\
+                -p {params.pipeline_dir} \\
+                -m {params.metadata} \\
+                -k {params.k} \\
+                -a "{params.alphabet}" \\
+                -s {params.strand} \\
+                -t {params.threads} \\
+                -o "$(dirname {output})" \\
+                --paired {params.paired}
+        else
+            # CGR-specific command
+            {params.pipeline_dir}/generate_cgr.sh \\
+                -b {params.base_dir} \\
+                -i {params.input_dir} \\
+                -p {params.pipeline_dir} \\
+                -m {params.metadata} \\
+                -s {params.strand} \\
+                -t {params.threads} \\
+                -o "$(dirname {output})" \\
+                --paired {params.paired}
+        fi
+        
+        # Ensure the output file exists
+        touch {output}
+        """
+
+# Clustering rule
+rule clustering:
+    input:
+        "{embedding}/embedding/embedding_complete.txt"
+    output:
+        "{embedding}/clustering/clustering_complete.txt"
+    wildcard_constraints:
+        embedding = "RTD|CGR"  # Only RTD and CGR
+    params:
+        pipeline_dir = config["pipeline_dir"],
+        min_cluster_size = config["min_cluster_size"],
+        min_samples = config["min_samples"],
+        max_GMM = config["max_GMM"],
+        threads = config["threads"],
+        seed = config["seed"]
+    shell:
+        """
+        echo "\nStarting {wildcards.embedding} clustering..."
+        echo "Input directory: $(dirname {input})"
+        echo "Output directory: $(dirname {output})"
+        
+        # Create output directory
+        mkdir -p $(dirname {output})
+        cd $(dirname {output})
+        
+        # Calculate the absolute path to the embedding directory
+        embedding_path=$(echo "$(pwd)/../../$(dirname {input})")
+        
+        python {params.pipeline_dir}/cluster.py \\
+            --file_pattern "$embedding_path"'/*/*.gz' \\
+            --output_file clustering_results.tsv \\
+            --min_cluster_size {params.min_cluster_size} \\
+            --min_samples {params.min_samples} \\
+            --num_cpus {params.threads} \\
+            --max_GMM {params.max_GMM} \\
+            --seed {params.seed}
+            
+        touch $(basename {output})
+        """
+
+# Bootstrapping rule
+rule bootstrapping:
+    input:
+        "{embedding}/clustering/clustering_complete.txt"
+    output:
+        "{embedding}/bootstrapping/bootstrapping_complete.txt"
+    wildcard_constraints:
+        embedding = "RTD|CGR"
+    params:
+        pipeline_dir = config["pipeline_dir"],
+        n_bootstraps = config["n_bootstraps"],
+        counts_file = "table.otu",
+        volumes_file = "est_volumes.tsv"
+    shell:
+        """
+        echo "\nStarting {wildcards.embedding} bootstrapping..."
+        echo "Input directory: $(dirname {input})"
+        echo "Output directory: $(dirname {output})"
+        echo "Number of bootstraps: {params.n_bootstraps}\n"
+        
+        # Get absolute paths before changing directories
+        base_dir=$(pwd)
+        input_path="$base_dir/$(dirname {input})"
+        
+        # Create output directory and change to it
+        mkdir -p $(dirname {output})
+        cd $(dirname {output})
+        
+        # Run bootstrap with the correct paths
+        python {params.pipeline_dir}/bootstrap.py \\
+            --counts "$input_path/{params.counts_file}" \\
+            --volumes "$input_path/{params.volumes_file}" \\
+            --n_bootstraps {params.n_bootstraps}
+            
+        touch $(basename {output})
+        """
+
+# Sleuth rule
+rule sleuth_analysis:
+    input:
+        "{embedding}/bootstrapping/bootstrapping_complete.txt"
+    output:
+        "{embedding}/Sleuth/sleuth_complete.txt"
+    wildcard_constraints:
+        embedding = "RTD|CGR"
+    params:
+        pipeline_dir = config["pipeline_dir"],
+        metadata = config["metadata"],
+        parameter = config["parameter"],
+        pseudocount = config["pseudocount"],
+        alpha = config["alpha"],
+        foldchange = config["foldchange"]
+    shell:
+        """
+        echo "\nStarting {wildcards.embedding} Sleuth analysis..."
+        echo "Bootstrap directory: $(dirname {input})"
+        echo "Output directory: $(dirname {output})"
+        echo "Parameter: {params.parameter}"
+        
+        # Create output directory
+        mkdir -p $(dirname {output})
+        
+        # First, get the absolute paths before changing directories
+        base_dir=$(pwd)
+        bootstrap_path="$base_dir/{wildcards.embedding}/bootstrapping"
+        
+        # Now change to the Sleuth directory to run the analysis
+        cd $(dirname {output})
+        
+        # The Rscript needs:
+        # --root: The base directory containing all embedding directories
+        # --bootstrap: Just the name of the bootstrap directory, not the full path
+        Rscript {params.pipeline_dir}/sleuth.R \
+            --root "$base_dir" \
+            --metadata {params.metadata} \
+            --bootstrap "{wildcards.embedding}/bootstrapping" \
+            --pseudocount {params.pseudocount} \
+            --alpha {params.alpha} \
+            --fc {params.foldchange} \
+            --parameter {params.parameter}
+            
+        # We're already in the output directory, so just touch the completion file
+        touch $(basename {output})
+        """
+
+# Read retrieval rule
+rule read_retrieval:
+    input:
+        "{embedding}/Sleuth/sleuth_complete.txt"
+    output:
+        "{embedding}/significant/retrieval_complete.txt"
+    wildcard_constraints:
+        embedding = "RTD|CGR"
+    params:
+        pipeline_dir = config["pipeline_dir"],
+        threads = config["threads"],
+        alpha = config["alpha"],
+        foldchange = config["foldchange"],
+        paired = "TRUE" if config["paired"] else "FALSE",
+        input_dir = INPUT_DIR,
+        clusters_file = "clustering_results.tsv",
+        cluster_dir = lambda wildcards: f"{wildcards.embedding}/clustering"
+    shell:
+        """
+        echo "\nStarting {wildcards.embedding} read retrieval..."
+        echo "Sleuth directory: $(dirname {input})"
+        echo "Output directory: $(dirname {output})"
+        
+        # Create output directory
+        mkdir -p $(dirname {output})
+        
+        # Get absolute paths before changing directories
+        base_dir=$(pwd)
+        sleuth_path="$base_dir/$(dirname {input})"
+        cluster_path="$base_dir/{params.cluster_dir}"
+        input_path="$base_dir/{params.input_dir}"
+        
+        # Change to the output directory
+        cd $(dirname {output})
+        
+        # Run the extraction and fetch scripts
+        python {params.pipeline_dir}/extract.py \\
+            --clusters "$cluster_path/{params.clusters_file}" \\
+            --sleuth "$sleuth_path/plotting.tsv" \\
+            --alpha {params.alpha} \\
+            --foldchange {params.foldchange}
+            
+        {params.pipeline_dir}/fetch_loop.sh \\
+            --pipeline {params.pipeline_dir} \\
+            --input "$input_path" \\
+            --threads {params.threads} \\
+            --paired {params.paired}
+            
+        # We're already in the output directory
+        touch $(basename {output})
+        """
