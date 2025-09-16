@@ -57,20 +57,16 @@ __clustering__
    - `fast_HDBSCAN` is able to identify saliant clusters of vectors while also being able to identify noise
    - an estimation of cluster hypervolume is also performed for `Sleuth` analysis
 
-__merging__
-
-4. *optionally*, if more than one embedding was used, their resulting clusterings can be merged based on read/vector overlap
-
 __statistical analysis *via* `Sleuth`__
 
-5. the results of the clustering(s) are then converted into file formats that `Sleuth` can accept for analysis
+4. the results of the clustering(s) are then converted into file formats that `Sleuth` can accept for analysis
    - both [Wald tests](https://en.wikipedia.org/wiki/Wald_test) and [Likelihood-ratio tests](https://en.wikipedia.org/wiki/Likelihood-ratio_test) are performed
    - the user defines the *q-value* and *fold-change* thresholds required for signficance as well as the metadata parameter over which the tests are performed
    - automated [Volcano plotting](https://en.wikipedia.org/wiki/Volcano_plot_(statistics)) is also attempted
 
 __retrieval__
 
-6. if significantly differentially present clusters are identified, the corresponding reads are extracted for *post-hoc* analysis
+5. if significantly differentially present clusters are identified, the corresponding reads are extracted for *post-hoc* analysis
 
 # design
 `DNom` is purposefully written in a modular way. Each step (*preprocessing*, *embedding*, *clustering*, *statistical analysis*, and *retrieval*) can be altered, swapped-out, and added-to from the modular `snakemake` pipeline.
